@@ -1,0 +1,8 @@
+asgiref==3.11.1
+Django==6.0.5
+dnspython==2.8.0
+eventlet==0.41.0
+greenlet==3.5.1
+redis==7.4.0
+sqlparse==0.5.5
+tasks-py==1.0.3
