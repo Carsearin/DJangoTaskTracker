@@ -16,7 +16,6 @@ class Task(models.Model):
 
     description = models.TextField(
         blank=True,
-        null=True,
         verbose_name="Description"
     )
 
