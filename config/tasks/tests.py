@@ -32,4 +32,5 @@ class TaskModelTest(TestCase):
         self.assertEqual(task.title, "Learn Django")
         self.assertEqual(task.status, Task.Status.TODO)
         self.assertEqual(task.user, user)
+        self.assertEqual(str(task), "Learn Django")
         self.assertIsNotNone(task.created_at)
