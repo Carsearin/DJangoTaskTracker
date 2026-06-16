@@ -123,3 +123,8 @@ class RegisterViewTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(User.objects.count(), 0)
+
+    def test_register_only_accepts_post(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 405)
