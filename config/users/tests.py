@@ -128,3 +128,16 @@ class RegisterViewTest(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 405)
+
+    def test_register_user_password_similar_to_username(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                "username": "similarusername",
+                "password": "similarusername",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)

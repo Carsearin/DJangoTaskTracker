@@ -44,8 +44,10 @@ def register(request):
             status=409,
         )
 
+    temp_user = User(username=username)
+
     try:
-        validate_password(password)
+        validate_password(password, user=temp_user)
     except ValidationError as e:
         return JsonResponse(
             {"errors": e.messages},
