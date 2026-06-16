@@ -4,6 +4,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
+from django.urls import reverse
 
 
 User = get_user_model()
@@ -11,9 +12,12 @@ User = get_user_model()
 
 class RegisterViewTest(TestCase):
 
+    def setUp(self):
+        self.url = reverse("register")
+
     def test_register_user_success(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps({
                 "username": "test_user",
                 "password": "test_password",
@@ -32,7 +36,7 @@ class RegisterViewTest(TestCase):
 
     def test_register_user_missing_fields(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps({}),
             content_type="application/json",
         )
@@ -41,7 +45,7 @@ class RegisterViewTest(TestCase):
 
     def test_register_user_empty_strings(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps({
                 "username": "",
                 "password": "",
@@ -59,7 +63,7 @@ class RegisterViewTest(TestCase):
         )
 
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps({
                 "username": "test_user",
                 "password": "another_password",
@@ -71,7 +75,7 @@ class RegisterViewTest(TestCase):
 
     def test_register_user_invalid_json(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data="{invalid json",
             content_type="application/json",
         )
@@ -81,7 +85,7 @@ class RegisterViewTest(TestCase):
 
     def test_register_user_invalid_json_type(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps([]),
             content_type="application/json",
         )
@@ -91,7 +95,7 @@ class RegisterViewTest(TestCase):
 
     def test_register_user_weak_password(self):
         response = self.client.post(
-            "/auth/register",
+            self.url,
             data=json.dumps({
                 "username": "test_user",
                 "password": "123",
@@ -109,7 +113,7 @@ class RegisterViewTest(TestCase):
             side_effect=IntegrityError,
         ):
             response = self.client.post(
-                "/auth/register",
+                self.url,
                 data=json.dumps({
                     "username": "test_user",
                     "password": "StrongPassword123!",
