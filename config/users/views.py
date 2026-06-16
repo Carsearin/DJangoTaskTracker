@@ -1,6 +1,9 @@
 import json
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -20,6 +23,12 @@ def register(request):
             status=400,
         )
 
+    if not isinstance(data, dict):
+        return JsonResponse(
+            {"error": "JSON body must be an object"},
+            status=400,
+        )
+
     username = data.get("username")
     password = data.get("password")
 
@@ -35,10 +44,24 @@ def register(request):
             status=400,
         )
 
-    user = User.objects.create_user(
-        username=username,
-        password=password,
-    )
+    try:
+        validate_password(password)
+    except ValidationError as e:
+        return JsonResponse(
+            {"errors": e.messages},
+            status=400,
+        )
+
+    try:
+        user = User.objects.create_user(
+            username=username,
+            password=password,
+        )
+    except IntegrityError:
+        return JsonResponse(
+            {"error": "Username already exists"},
+            status=400,
+        )
 
     return JsonResponse(
         {
