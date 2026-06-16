@@ -17,7 +17,7 @@ User = get_user_model()
 def register(request):
     try:
         data = json.loads(request.body)
-    except json.JSONDecodeError:
+    except (json.JSONDecodeError, UnicodeDecodeError):
         return JsonResponse(
             {"error": "Invalid JSON"},
             status=400,
