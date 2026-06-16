@@ -71,7 +71,7 @@ class RegisterViewTest(TestCase):
             content_type="application/json",
         )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
 
     def test_register_user_invalid_json(self):
         response = self.client.post(
@@ -121,7 +121,7 @@ class RegisterViewTest(TestCase):
                 content_type="application/json",
             )
 
-        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.status_code, 409)
         self.assertEqual(User.objects.count(), 0)
 
     def test_register_only_accepts_post(self):

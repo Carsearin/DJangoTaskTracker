@@ -41,7 +41,7 @@ def register(request):
     if User.objects.filter(username=username).exists():
         return JsonResponse(
             {"error": "Username already exists"},
-            status=400,
+            status=409,
         )
 
     try:
@@ -60,7 +60,7 @@ def register(request):
     except IntegrityError:
         return JsonResponse(
             {"error": "Username already exists"},
-            status=400,
+            status=409,
         )
 
     return JsonResponse(
