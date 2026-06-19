@@ -1,11 +1,13 @@
 import json
 from unittest.mock import patch
 
+import jwt
+from django.conf import settings
+
 from django.contrib.auth import get_user_model
 from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
-
 
 User = get_user_model()
 
@@ -164,7 +166,20 @@ class LoginViewTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("token", response.json())
+
+        token = response.json()["token"]
+
+        payload = jwt.decode(
+            token,
+            settings.JWT_SECRET_KEY,
+            algorithms=[settings.JWT_ALGORITHM],
+        )
+
+        self.assertEqual(payload["user_id"], self.user.id)
+        self.assertEqual(payload["username"], self.user.username)
+
+        self.assertIn("iat", payload)
+        self.assertIn("exp", payload)
 
     def test_login_user_wrong_password(self):
         response = self.client.post(
