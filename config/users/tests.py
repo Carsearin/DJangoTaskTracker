@@ -144,6 +144,16 @@ class RegisterViewTest(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(User.objects.count(), 0)
 
+    def test_register_user_malformed_bytes(self):
+        response = self.client.post(
+            self.url,
+            data=b"\x80\x81\x82",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(User.objects.count(), 0)
+
 
 class LoginViewTest(TestCase):
 
@@ -250,3 +260,12 @@ class LoginViewTest(TestCase):
         response = self.client.get(self.url)
 
         self.assertEqual(response.status_code, 405)
+
+    def test_login_user_malformed_bytes(self):
+        response = self.client.post(
+            self.url,
+            data=b"\x80\x81\x82",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
