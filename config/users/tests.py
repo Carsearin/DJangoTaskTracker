@@ -141,3 +141,97 @@ class RegisterViewTest(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(User.objects.count(), 0)
+
+
+class LoginViewTest(TestCase):
+
+    def setUp(self):
+        self.url = reverse("login")
+
+        self.user = User.objects.create_user(
+            username="test_user",
+            password="StrongPassword123!",
+        )
+
+    def test_login_user_success(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                "username": "test_user",
+                "password": "StrongPassword123!",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("token", response.json())
+
+    def test_login_user_wrong_password(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                "username": "test_user",
+                "password": "WrongPassword123!",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("token", response.json())
+
+    def test_login_user_not_found(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                "username": "unknown_user",
+                "password": "StrongPassword123!",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 401)
+        self.assertNotIn("token", response.json())
+
+    def test_login_user_missing_fields(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({}),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_user_empty_strings(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps({
+                "username": "",
+                "password": "",
+            }),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_user_invalid_json(self):
+        response = self.client.post(
+            self.url,
+            data="{invalid json",
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_user_invalid_json_type(self):
+        response = self.client.post(
+            self.url,
+            data=json.dumps([]),
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+
+    def test_login_only_accepts_post(self):
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 405)
