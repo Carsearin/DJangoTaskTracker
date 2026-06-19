@@ -75,6 +75,7 @@ def register(request):
         status=201,
     )
 
+
 @csrf_exempt
 @require_POST
 def login(request):
@@ -113,13 +114,15 @@ def login(request):
             status=401,
         )
 
+    now = datetime.now(timezone.utc)
+
     payload = {
         "user_id": user.id,
         "username": user.username,
-        "exp": datetime.now(timezone.utc) + timedelta(
+        "iat": now,
+        "exp": now + timedelta(
             minutes=settings.JWT_EXPIRATION_MINUTES
         ),
-        "iat": datetime.now(timezone.utc),
     }
 
     token = jwt.encode(
