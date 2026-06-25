@@ -109,6 +109,9 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+JWT_SECRET_KEY = os.environ["JWT_SECRET_KEY"]
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+JWT_EXPIRATION_MINUTES = int(os.getenv("JWT_EXPIRATION_MINUTES", 60))
 
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
