@@ -184,3 +184,26 @@ class TasksAuthTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+    def test_tasks_with_invalid_user_id_type_returns_401(self):
+        now = datetime.now(timezone.utc)
+
+        token = jwt.encode(
+            {
+                "user_id": "abc",
+                "username": self.user.username,
+                "iat": now,
+                "exp": now + timedelta(
+                    minutes=settings.JWT_EXPIRATION_MINUTES,
+                ),
+            },
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
+        )
+
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(response.status_code, 401)

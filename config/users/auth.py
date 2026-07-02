@@ -50,9 +50,9 @@ def jwt_required(view_func):
 
         try:
             request.user = User.objects.get(id=user_id)
-        except User.DoesNotExist:
+        except (User.DoesNotExist, ValueError, TypeError):
             return JsonResponse(
-                {"error": "User not found"},
+                {"error": "Invalid token"},
                 status=401,
             )
 
