@@ -163,3 +163,24 @@ class TasksAuthTest(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["user"], self.user.username)
+
+    def test_tasks_with_missing_required_claim_returns_401(self):
+        now = datetime.now(timezone.utc)
+
+        token = jwt.encode(
+            {
+                "user_id": self.user.id,
+                "username": self.user.username,
+                "iat": now,
+                # exp intentionally omitted
+            },
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
+        )
+
+        response = self.client.get(
+            self.url,
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+
+        self.assertEqual(response.status_code, 401)

@@ -31,6 +31,9 @@ def jwt_required(view_func):
                 token,
                 settings.JWT_SECRET_KEY,
                 algorithms=[settings.JWT_ALGORITHM],
+                options={
+                    "require": ["exp", "iat", "user_id"],
+                },
             )
         except jwt.ExpiredSignatureError:
             return JsonResponse(
