@@ -1,4 +1,5 @@
 import jwt
+import json
 from datetime import datetime, timedelta, timezone
 
 from django.conf import settings
@@ -156,13 +157,20 @@ class TasksAuthTest(TestCase):
     def test_tasks_user_is_resolved_from_token(self):
         token = self.make_token()
 
-        response = self.client.get(
+        response = self.client.post(
             self.url,
+            data=json.dumps({
+                "title": "Authenticated user task",
+            }),
+            content_type="application/json",
             HTTP_AUTHORIZATION=f"Bearer {token}",
         )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["user"], self.user.username)
+        self.assertEqual(response.status_code, 201)
+
+        task = Task.objects.get(id=response.json()["id"])
+
+        self.assertEqual(task.user, self.user)
 
     def test_tasks_with_missing_required_claim_returns_401(self):
         now = datetime.now(timezone.utc)
@@ -207,3 +215,133 @@ class TasksAuthTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 401)
+
+
+class TasksCrudTest(TestCase):
+    def setUp(self):
+        self.list_url = reverse("tasks-list")
+
+        self.user = User.objects.create_user(
+            username="crud_user",
+            password="StrongPassword123!",
+        )
+
+        now = datetime.now(timezone.utc)
+
+        self.token = jwt.encode(
+            {
+                "user_id": self.user.id,
+                "username": self.user.username,
+                "iat": now,
+                "exp": now + timedelta(
+                    minutes=settings.JWT_EXPIRATION_MINUTES,
+                ),
+            },
+            settings.JWT_SECRET_KEY,
+            algorithm=settings.JWT_ALGORITHM,
+        )
+
+        self.auth_header = f"Bearer {self.token}"
+
+        self.task = Task.objects.create(
+            title="Initial task",
+            description="Initial description",
+            status=Task.Status.TODO,
+            user=self.user,
+        )
+
+    def test_get_tasks_list(self):
+        response = self.client.get(
+            self.list_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.json()["tasks"]), 1)
+        self.assertEqual(
+            response.json()["tasks"][0]["id"],
+            self.task.id,
+        )
+
+    def test_create_task(self):
+        response = self.client.post(
+            self.list_url,
+            data=json.dumps({
+                "title": "New task",
+                "description": "New description",
+                "status": Task.Status.IN_PROGRESS,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(Task.objects.count(), 2)
+
+        created_task = Task.objects.get(
+            id=response.json()["id"],
+        )
+
+        self.assertEqual(created_task.title, "New task")
+        self.assertEqual(
+            created_task.status,
+            Task.Status.IN_PROGRESS,
+        )
+        self.assertEqual(created_task.user, self.user)
+
+    def test_get_task_by_id(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.task.id],
+        )
+
+        response = self.client.get(
+            detail_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["id"], self.task.id)
+        self.assertEqual(
+            response.json()["title"],
+            self.task.title,
+        )
+
+    def test_update_task(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.task.id],
+        )
+
+        response = self.client.patch(
+            detail_url,
+            data=json.dumps({
+                "title": "Updated task",
+                "status": Task.Status.DONE,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.task.refresh_from_db()
+
+        self.assertEqual(self.task.title, "Updated task")
+        self.assertEqual(self.task.status, Task.Status.DONE)
+
+    def test_delete_task(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.task.id],
+        )
+
+        response = self.client.delete(
+            detail_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 204)
+        self.assertFalse(
+            Task.objects.filter(id=self.task.id).exists(),
+        )
