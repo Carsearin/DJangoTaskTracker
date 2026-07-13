@@ -150,6 +150,24 @@ def task_detail(request, task_id):
             status=400,
         )
 
+    if not data:
+        return JsonResponse(
+            {"error": "At least one field is required"},
+            status=400,
+        )
+
+    allowed_fields = {"title", "description", "status"}
+    unknown_fields = set(data) - allowed_fields
+
+    if unknown_fields:
+        return JsonResponse(
+            {
+                "error": "Unknown fields",
+                "fields": sorted(unknown_fields),
+            },
+            status=400,
+        )
+
     if "title" in data:
         if (
                 not isinstance(data["title"], str)
