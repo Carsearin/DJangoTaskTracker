@@ -54,9 +54,21 @@ def tasks_list(request):
     description = data.get("description", "")
     status = data.get("status", Task.Status.TODO)
 
-    if not title:
+    if not isinstance(title, str) or not title.strip():
         return JsonResponse(
-            {"error": "Title is required"},
+            {"error": "Title must be a non-empty string"},
+            status=400,
+        )
+
+    if not isinstance(description, str):
+        return JsonResponse(
+            {"error": "Description must be a string"},
+            status=400,
+        )
+
+    if not isinstance(status, str):
+        return JsonResponse(
+            {"error": "Status must be a string"},
             status=400,
         )
 
@@ -67,7 +79,7 @@ def tasks_list(request):
         )
 
     task = Task.objects.create(
-        title=title,
+        title=title.strip(),
         description=description,
         status=status,
         user=request.user,
@@ -120,18 +132,33 @@ def task_detail(request, task_id):
         )
 
     if "title" in data:
-        if not data["title"]:
+        if (
+                not isinstance(data["title"], str)
+                or not data["title"].strip()
+        ):
             return JsonResponse(
-                {"error": "Title cannot be empty"},
+                {"error": "Title must be a non-empty string"},
                 status=400,
             )
 
-        task.title = data["title"]
+        task.title = data["title"].strip()
 
     if "description" in data:
+        if not isinstance(data["description"], str):
+            return JsonResponse(
+                {"error": "Description must be a string"},
+                status=400,
+            )
+
         task.description = data["description"]
 
     if "status" in data:
+        if not isinstance(data["status"], str):
+            return JsonResponse(
+                {"error": "Status must be a string"},
+                status=400,
+            )
+
         if data["status"] not in Task.Status.values:
             return JsonResponse(
                 {"error": "Invalid status"},
