@@ -1,6 +1,6 @@
 import json
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -131,10 +131,7 @@ def task_detail(request, task_id):
     if request.method == "DELETE":
         task.delete()
 
-        return JsonResponse(
-            {},
-            status=204,
-        )
+        return HttpResponse(status=204)
 
     try:
         data = json.loads(request.body)

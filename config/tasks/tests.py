@@ -342,6 +342,7 @@ class TasksCrudTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
         self.assertFalse(
             Task.objects.filter(id=self.task.id).exists(),
         )
