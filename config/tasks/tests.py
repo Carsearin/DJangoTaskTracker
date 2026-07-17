@@ -1,7 +1,7 @@
-import jwt
 import json
 from datetime import datetime, timedelta, timezone
 
+import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import connection
@@ -12,6 +12,33 @@ from tasks.models import Task
 
 
 User = get_user_model()
+
+
+class ErrorResponseAssertionsMixin:
+    def assert_error_response(
+        self,
+        response,
+        status_code,
+        error_code,
+    ):
+        self.assertEqual(response.status_code, status_code)
+
+        data = response.json()
+
+        self.assertIn("error", data)
+        self.assertIsInstance(data["error"], dict)
+        self.assertEqual(
+            data["error"]["code"],
+            error_code,
+        )
+        self.assertIn(
+            "message",
+            data["error"],
+        )
+        self.assertIsInstance(
+            data["error"]["message"],
+            str,
+        )
 
 
 class DatabaseConnectionTest(TestCase):
@@ -42,8 +69,10 @@ class TaskModelTest(TestCase):
         self.assertIsNotNone(task.created_at)
 
 
-class TasksAuthTest(TestCase):
-
+class TasksAuthTest(
+    ErrorResponseAssertionsMixin,
+    TestCase,
+):
     def setUp(self):
         self.url = reverse("tasks-list")
 
@@ -64,11 +93,23 @@ class TasksAuthTest(TestCase):
         token_user = user or self.user
 
         payload = {
-            "user_id": user_id or token_user.id,
-            "username": username or token_user.username,
+            "user_id": (
+                user_id
+                if user_id is not None
+                else token_user.id
+            ),
+            "username": (
+                username
+                if username is not None
+                else token_user.username
+            ),
             "iat": now,
-            "exp": now - timedelta(minutes=1) if expired else now + timedelta(
-                minutes=settings.JWT_EXPIRATION_MINUTES,
+            "exp": (
+                now - timedelta(minutes=1)
+                if expired
+                else now + timedelta(
+                    minutes=settings.JWT_EXPIRATION_MINUTES,
+                )
             ),
         }
 
@@ -168,7 +209,9 @@ class TasksAuthTest(TestCase):
 
         self.assertEqual(response.status_code, 201)
 
-        task = Task.objects.get(id=response.json()["id"])
+        task = Task.objects.get(
+            id=response.json()["id"],
+        )
 
         self.assertEqual(task.user, self.user)
 
@@ -180,7 +223,6 @@ class TasksAuthTest(TestCase):
                 "user_id": self.user.id,
                 "username": self.user.username,
                 "iat": now,
-                # exp intentionally omitted
             },
             settings.JWT_SECRET_KEY,
             algorithm=settings.JWT_ALGORITHM,
@@ -216,8 +258,22 @@ class TasksAuthTest(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
+    def test_tasks_without_token_returns_standard_error_response(
+        self,
+    ):
+        response = self.client.get(self.url)
 
-class TasksCrudTest(TestCase):
+        self.assert_error_response(
+            response,
+            401,
+            "unauthorized",
+        )
+
+
+class TasksCrudTest(
+    ErrorResponseAssertionsMixin,
+    TestCase,
+):
     def setUp(self):
         self.list_url = reverse("tasks-list")
 
@@ -257,7 +313,10 @@ class TasksCrudTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["tasks"]), 1)
+        self.assertEqual(
+            len(response.json()["tasks"]),
+            1,
+        )
         self.assertEqual(
             response.json()["tasks"][0]["id"],
             self.task.id,
@@ -282,12 +341,18 @@ class TasksCrudTest(TestCase):
             id=response.json()["id"],
         )
 
-        self.assertEqual(created_task.title, "New task")
+        self.assertEqual(
+            created_task.title,
+            "New task",
+        )
         self.assertEqual(
             created_task.status,
             Task.Status.IN_PROGRESS,
         )
-        self.assertEqual(created_task.user, self.user)
+        self.assertEqual(
+            created_task.user,
+            self.user,
+        )
 
     def test_get_task_by_id(self):
         detail_url = reverse(
@@ -301,7 +366,10 @@ class TasksCrudTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["id"], self.task.id)
+        self.assertEqual(
+            response.json()["id"],
+            self.task.id,
+        )
         self.assertEqual(
             response.json()["title"],
             self.task.title,
@@ -327,8 +395,14 @@ class TasksCrudTest(TestCase):
 
         self.task.refresh_from_db()
 
-        self.assertEqual(self.task.title, "Updated task")
-        self.assertEqual(self.task.status, Task.Status.DONE)
+        self.assertEqual(
+            self.task.title,
+            "Updated task",
+        )
+        self.assertEqual(
+            self.task.status,
+            Task.Status.DONE,
+        )
 
     def test_delete_task(self):
         detail_url = reverse(
@@ -344,5 +418,55 @@ class TasksCrudTest(TestCase):
         self.assertEqual(response.status_code, 204)
         self.assertEqual(response.content, b"")
         self.assertFalse(
-            Task.objects.filter(id=self.task.id).exists(),
+            Task.objects.filter(
+                id=self.task.id,
+            ).exists(),
         )
+
+    def test_create_task_returns_standard_error_response(self):
+        response = self.client.post(
+            self.list_url,
+            data=json.dumps({}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            400,
+            "validation_error",
+        )
+
+    def test_missing_task_returns_standard_error_response(self):
+        response = self.client.get(
+            reverse(
+                "task-detail",
+                args=[999999],
+            ),
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            404,
+            "not_found",
+        )
+
+    def test_create_task_with_invalid_status_returns_400(self):
+        response = self.client.post(
+            self.list_url,
+            data=json.dumps({
+                "title": "Task with invalid status",
+                "status": "invalid_status",
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            400,
+            "invalid_status",
+        )
+
+        self.assertEqual(Task.objects.count(), 1)
