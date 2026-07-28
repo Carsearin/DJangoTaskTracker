@@ -165,6 +165,68 @@ class LoginViewTest(TestCase):
             password="StrongPassword123!",
         )
 
+    def test_successful_login_writes_info_log(self):
+        with self.assertLogs(
+                "users.views",
+                level="INFO",
+        ) as captured:
+            response = self.client.post(
+                self.url,
+                data=json.dumps({
+                    "username": "test_user",
+                    "password": "StrongPassword123!",
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+
+        logs = "\n".join(captured.output)
+
+        self.assertIn(
+            "Login succeeded",
+            logs,
+        )
+        self.assertIn(
+            f"user_id={self.user.id}",
+            logs,
+        )
+        self.assertIn(
+            f"username={self.user.username}",
+            logs,
+        )
+
+    def test_failed_login_writes_warning_log(self):
+        with self.assertLogs(
+                "users.views",
+                level="WARNING",
+        ) as captured:
+            response = self.client.post(
+                self.url,
+                data=json.dumps({
+                    "username": "test_user",
+                    "password": "WrongPassword123!",
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+        logs = "\n".join(captured.output)
+
+        self.assertIn(
+            "WARNING",
+            logs,
+        )
+        self.assertIn(
+            "Login failed",
+            logs,
+        )
+        self.assertIn(
+            "username=test_user",
+            logs,
+        )
+
     def test_login_user_success(self):
         response = self.client.post(
             self.url,
@@ -269,3 +331,52 @@ class LoginViewTest(TestCase):
         )
 
         self.assertEqual(response.status_code, 400)
+
+    def test_failed_login_does_not_log_password(self):
+        password = "PasswordThatMustNotAppearInLogs123!"
+
+        with self.assertLogs(
+                "users.views",
+                level="WARNING",
+        ) as captured:
+            response = self.client.post(
+                self.url,
+                data=json.dumps({
+                    "username": "test_user",
+                    "password": password,
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 401)
+
+        logs = "\n".join(captured.output)
+
+        self.assertNotIn(
+            password,
+            logs,
+        )
+
+    def test_successful_login_does_not_log_token(self):
+        with self.assertLogs(
+                "users.views",
+                level="INFO",
+        ) as captured:
+            response = self.client.post(
+                self.url,
+                data=json.dumps({
+                    "username": "test_user",
+                    "password": "StrongPassword123!",
+                }),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+
+        token = response.json()["token"]
+        logs = "\n".join(captured.output)
+
+        self.assertNotIn(
+            token,
+            logs,
+        )
