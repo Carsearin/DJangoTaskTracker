@@ -306,6 +306,18 @@ class TasksCrudTest(
             user=self.user,
         )
 
+        self.other_user = User.objects.create_user(
+            username="other_user",
+            password="StrongPassword123!",
+        )
+
+        self.other_task = Task.objects.create(
+            title="Other user's task",
+            description="Other user's description",
+            status=Task.Status.IN_PROGRESS,
+            user=self.other_user,
+        )
+
     def test_get_tasks_list(self):
         response = self.client.get(
             self.list_url,
@@ -335,7 +347,7 @@ class TasksCrudTest(
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(Task.objects.count(), 2)
+        self.assertEqual(Task.objects.count(), 3)
 
         created_task = Task.objects.get(
             id=response.json()["id"],
@@ -469,4 +481,106 @@ class TasksCrudTest(
             "invalid_status",
         )
 
-        self.assertEqual(Task.objects.count(), 1)
+        self.assertEqual(Task.objects.count(), 2)
+
+    def test_user_does_not_see_other_users_tasks(self):
+        response = self.client.get(
+            self.list_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        tasks = response.json()["tasks"]
+        task_ids = [
+            task["id"]
+            for task in tasks
+        ]
+
+        self.assertIn(
+            self.task.id,
+            task_ids,
+        )
+        self.assertNotIn(
+            self.other_task.id,
+            task_ids,
+        )
+        self.assertEqual(len(tasks), 1)
+
+    def test_user_cannot_get_other_users_task(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.other_task.id],
+        )
+
+        response = self.client.get(
+            detail_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            404,
+            "not_found",
+        )
+
+    def test_user_cannot_update_other_users_task(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.other_task.id],
+        )
+
+        response = self.client.patch(
+            detail_url,
+            data=json.dumps({
+                "title": "Hacked title",
+                "status": Task.Status.DONE,
+            }),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            404,
+            "not_found",
+        )
+
+        self.other_task.refresh_from_db()
+
+        self.assertEqual(
+            self.other_task.title,
+            "Other user's task",
+        )
+        self.assertEqual(
+            self.other_task.status,
+            Task.Status.IN_PROGRESS,
+        )
+        self.assertEqual(
+            self.other_task.user,
+            self.other_user,
+        )
+
+    def test_user_cannot_delete_other_users_task(self):
+        detail_url = reverse(
+            "task-detail",
+            args=[self.other_task.id],
+        )
+
+        response = self.client.delete(
+            detail_url,
+            HTTP_AUTHORIZATION=self.auth_header,
+        )
+
+        self.assert_error_response(
+            response,
+            404,
+            "not_found",
+        )
+
+        self.assertTrue(
+            Task.objects.filter(
+                id=self.other_task.id,
+                user=self.other_user,
+            ).exists(),
+        )
