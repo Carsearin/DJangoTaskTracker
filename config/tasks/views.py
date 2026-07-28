@@ -25,7 +25,11 @@ def serialize_task(task):
 @jwt_required
 def tasks_list(request):
     if request.method == "GET":
-        tasks = Task.objects.all().order_by("-created_at")
+        tasks = (
+            Task.objects
+            .filter(user=request.user)
+            .order_by("-created_at")
+        )
 
         return JsonResponse(
             {
@@ -142,7 +146,10 @@ def tasks_list(request):
 @jwt_required
 def task_detail(request, task_id):
     try:
-        task = Task.objects.get(id=task_id)
+        task = Task.objects.get(
+            id=task_id,
+            user=request.user,
+        )
     except Task.DoesNotExist:
         return error_response(
             code="not_found",
