@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,6 +8,9 @@ from django.views.decorators.http import require_http_methods
 from common.responses import error_response
 from tasks.models import Task
 from users.auth import jwt_required
+
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_task(task):
@@ -135,6 +139,13 @@ def tasks_list(request):
         user=request.user,
     )
 
+    logger.info(
+        "Task created task_id=%s user_id=%s status=%s",
+        task.id,
+        request.user.id,
+        task.status,
+    )
+
     return JsonResponse(
         serialize_task(task),
         status=201,
@@ -151,6 +162,12 @@ def task_detail(request, task_id):
             user=request.user,
         )
     except Task.DoesNotExist:
+        logger.warning(
+            "Task access failed task_id=%s user_id=%s",
+            task_id,
+            request.user.id,
+        )
+
         return error_response(
             code="not_found",
             message="Task not found",
@@ -164,7 +181,16 @@ def task_detail(request, task_id):
         )
 
     if request.method == "DELETE":
+        deleted_task_id = task.id
+        owner_id = task.user_id
+
         task.delete()
+
+        logger.info(
+            "Task deleted task_id=%s user_id=%s",
+            deleted_task_id,
+            owner_id,
+        )
 
         return HttpResponse(status=204)
 
@@ -263,6 +289,15 @@ def task_detail(request, task_id):
         task.status = data["status"]
 
     task.save()
+
+    updated_fields = sorted(data.keys())
+
+    logger.info(
+        "Task updated task_id=%s user_id=%s fields=%s",
+        task.id,
+        request.user.id,
+        ",".join(updated_fields),
+    )
 
     return JsonResponse(
         serialize_task(task),

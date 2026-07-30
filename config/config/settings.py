@@ -42,7 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # local apps
-    'tasks',
+    'tasks.apps.TasksConfig',
     'users',
 ]
 
@@ -164,5 +164,12 @@ LOGGING = {
     "root": {
         "handlers": ["console"],
         "level": LOG_LEVEL,
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
     },
 }
