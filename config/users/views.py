@@ -168,7 +168,7 @@ def login(request):
 
     if user is None:
         logger.warning(
-            "Login failed for username=%s",
+            "Login failed username=%r",
             username,
         )
 
