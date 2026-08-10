@@ -35,6 +35,12 @@ def tasks_list(request):
             .order_by("-created_at")
         )
 
+        logger.debug(
+            "Retrieved %d tasks for user_id=%s",
+            tasks.count(),
+            request.user.id,
+        )
+
         return JsonResponse(
             {
                 "tasks": [
@@ -132,6 +138,12 @@ def tasks_list(request):
             },
         )
 
+    logger.debug(
+        "Creating task for user_id=%s status=%s",
+        request.user.id,
+        status,
+    )
+
     task = Task.objects.create(
         title=title.strip(),
         description=description,
@@ -175,6 +187,12 @@ def task_detail(request, task_id):
         )
 
     if request.method == "GET":
+        logger.debug(
+            "Retrieved task_id=%s for user_id=%s",
+            task.id,
+            request.user.id,
+        )
+
         return JsonResponse(
             serialize_task(task),
             status=200,
@@ -227,6 +245,13 @@ def task_detail(request, task_id):
             status=400,
             fields=sorted(unknown_fields),
         )
+
+    logger.debug(
+        "Updating task_id=%s user_id=%s fields=%s",
+        task.id,
+        request.user.id,
+        ",".join(sorted(data.keys())),
+    )
 
     if "title" in data:
         if (
