@@ -1,4 +1,5 @@
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -16,6 +17,7 @@ from common.responses import error_response
 
 User = get_user_model()
 
+logger = logging.getLogger(__name__)
 
 def get_missing_auth_fields(username, password):
     missing_fields = {}
@@ -165,6 +167,11 @@ def login(request):
     )
 
     if user is None:
+        logger.warning(
+            "Login failed username=%r",
+            username,
+        )
+
         return error_response(
             code="invalid_credentials",
             message="Invalid credentials",
@@ -186,6 +193,12 @@ def login(request):
         payload,
         settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
+    )
+
+    logger.info(
+        "Login succeeded for user_id=%s username=%s",
+        user.id,
+        user.username,
     )
 
     return JsonResponse(

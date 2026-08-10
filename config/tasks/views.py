@@ -1,4 +1,5 @@
 import json
+import logging
 
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -7,6 +8,9 @@ from django.views.decorators.http import require_http_methods
 from common.responses import error_response
 from tasks.models import Task
 from users.auth import jwt_required
+
+
+logger = logging.getLogger(__name__)
 
 
 def serialize_task(task):
@@ -29,6 +33,12 @@ def tasks_list(request):
             Task.objects
             .filter(user=request.user)
             .order_by("-created_at")
+        )
+
+        logger.debug(
+            "Retrieved %d tasks for user_id=%s",
+            tasks.count(),
+            request.user.id,
         )
 
         return JsonResponse(
@@ -128,11 +138,24 @@ def tasks_list(request):
             },
         )
 
+    logger.debug(
+        "Creating task for user_id=%s status=%s",
+        request.user.id,
+        status,
+    )
+
     task = Task.objects.create(
         title=title.strip(),
         description=description,
         status=status,
         user=request.user,
+    )
+
+    logger.info(
+        "Task created task_id=%s user_id=%s status=%s",
+        task.id,
+        request.user.id,
+        task.status,
     )
 
     return JsonResponse(
@@ -151,6 +174,12 @@ def task_detail(request, task_id):
             user=request.user,
         )
     except Task.DoesNotExist:
+        logger.warning(
+            "Task access failed task_id=%s user_id=%s",
+            task_id,
+            request.user.id,
+        )
+
         return error_response(
             code="not_found",
             message="Task not found",
@@ -158,13 +187,28 @@ def task_detail(request, task_id):
         )
 
     if request.method == "GET":
+        logger.debug(
+            "Retrieved task_id=%s for user_id=%s",
+            task.id,
+            request.user.id,
+        )
+
         return JsonResponse(
             serialize_task(task),
             status=200,
         )
 
     if request.method == "DELETE":
+        deleted_task_id = task.id
+        owner_id = task.user_id
+
         task.delete()
+
+        logger.info(
+            "Task deleted task_id=%s user_id=%s",
+            deleted_task_id,
+            owner_id,
+        )
 
         return HttpResponse(status=204)
 
@@ -201,6 +245,13 @@ def task_detail(request, task_id):
             status=400,
             fields=sorted(unknown_fields),
         )
+
+    logger.debug(
+        "Updating task_id=%s user_id=%s fields=%s",
+        task.id,
+        request.user.id,
+        ",".join(sorted(data.keys())),
+    )
 
     if "title" in data:
         if (
@@ -263,6 +314,15 @@ def task_detail(request, task_id):
         task.status = data["status"]
 
     task.save()
+
+    updated_fields = sorted(data.keys())
+
+    logger.info(
+        "Task updated task_id=%s user_id=%s fields=%s",
+        task.id,
+        request.user.id,
+        ",".join(updated_fields),
+    )
 
     return JsonResponse(
         serialize_task(task),
