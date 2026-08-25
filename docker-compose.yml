@@ -6,19 +6,15 @@ services:
     env_file:
       - ./config/.env
 
-    environment:
-      POSTGRES_DB: ${DB_NAME}
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
     healthcheck:
-      test: [
-        "CMD-SHELL",
-        "pg_isready -U ${DB_USER} -d ${DB_NAME}"
-      ]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"
+        ]
       interval: 5s
       timeout: 5s
       retries: 5
