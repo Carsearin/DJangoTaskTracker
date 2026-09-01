@@ -223,7 +223,7 @@ class LoginViewTest(TestCase):
             logs,
         )
         self.assertIn(
-            "username=test_user",
+            "username='test_user'",
             logs,
         )
 
