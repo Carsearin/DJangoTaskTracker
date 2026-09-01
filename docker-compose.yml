@@ -40,12 +40,24 @@ services:
       --error-logfile -
       "
 
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "python -c \"import socket; s=socket.create_connection(('localhost', 8000), 2); s.close()\""
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
   nginx:
     image: nginx:alpine
     container_name: tasktracker-nginx
 
     depends_on:
-      - web
+      web:
+        condition: service_healthy
 
     ports:
       - "8000:80"
